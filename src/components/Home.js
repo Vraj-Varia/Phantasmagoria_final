@@ -1,5 +1,5 @@
 import Portfolio from "./Portfolio";
-import Stories from "./Stories";
+// import Stories from "./Stories";
 
 
 function Home({ scrollY }) {

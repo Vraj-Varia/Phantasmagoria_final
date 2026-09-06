@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useRef } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, Link, useLocation } from 'react-router-dom';
 import Navigation from './Navigation';
 // import Footer from './Footer';
@@ -164,18 +164,25 @@ function EventDetail() {
     document.body.style.overflow = 'auto';
   };
 
-  const navigateLightbox = (direction) => {
+  const navigateLightbox = useCallback((direction) => {
     if (!selectedImage) return;
-    const currentIndex = filteredImages.findIndex(img => img.id === selectedImage.id);
+
+    const currentIndex = filteredImages.findIndex(
+      img => img.id === selectedImage.id
+    );
+
     if (currentIndex === -1) return;
+
     let newIndex;
+
     if (direction === 'next') {
       newIndex = (currentIndex + 1) % filteredImages.length;
     } else {
       newIndex = (currentIndex - 1 + filteredImages.length) % filteredImages.length;
     }
+
     setSelectedImage(filteredImages[newIndex]);
-  };
+  }, [selectedImage, filteredImages]);
 
   useEffect(() => {
     const handleKeyDown = (e) => {
@@ -187,7 +194,7 @@ function EventDetail() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [selectedImage, filteredImages]);
+  }, [selectedImage, filteredImages, navigateLightbox]);
 
   const categoryLabels = {
     all: 'All Moments',

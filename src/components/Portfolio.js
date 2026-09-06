@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 
 import ImageSlider from "./ImageSlider";
-import image1 from '../assets/1_slider.jpg';
+// import image1 from '../assets/1_slider.jpg';
 import image2 from '../assets/2_slider.jpg';
 import image3 from '../assets/3_slider.jpg';
 import image4 from '../assets/4_slider.jpg';
