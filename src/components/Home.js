@@ -1,18 +1,2 @@
-import Portfolio from "./Portfolio";
-// import Stories from "./Stories";
+export { default } from '../pages/HomePage';
 
-
-function Home({ scrollY }) {
-
-
-
-  return (
-    <>
-      <Portfolio scrollY={scrollY} />
-      {/* <Stories /> */}
-    </>
-  );
-
-}
-
-export default Home;
