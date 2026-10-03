@@ -89,92 +89,98 @@ const ImageSlider = ({ slides = [], autoPlayInterval = 5000 }) => {
 
   return (
     <div
-      className="custom-slider-wrapper"
+      className="sqs-gallery-container sqs-gallery-block-slideshow sqs-gallery-block-slider sqs-gallery-has-controls sqs-gallery-block-show-meta sqs-gallery-transparent-background block-animation-none clear custom-slider-wrapper"
       onMouseEnter={() => setIsPaused(true)}
       onMouseLeave={() => setIsPaused(false)}
       onKeyDown={handleKeyDown}
       tabIndex="0"
       role="region"
-      aria-label="Image Carousel"
+      aria-label="Wedding Gallery Slideshow"
+      onTouchStart={handleTouchStart}
+      onTouchMove={handleTouchMove}
+      onTouchEnd={handleTouchEnd}
     >
-      <div
-        className="custom-slider-container"
-        onTouchStart={handleTouchStart}
-        onTouchMove={handleTouchMove}
-        onTouchEnd={handleTouchEnd}
-      >
-        {/* Navigation Arrows */}
-        {total > 1 && (
-          <>
-            <button
-              className="slider-arrow slider-arrow-left"
-              onClick={prevSlide}
-              aria-label="Previous slide"
+      {/* Slideshow Track */}
+      <div className="sqs-gallery slider-slides-track">
+        {normalizedSlides.map((slide, index) => {
+          const isActive = index === currentIndex;
+          const optimizedUrl = getOptimizedImageUrl(slide.url, {
+            width: 1600,
+            quality: 'auto:best',
+            format: 'auto'
+          });
+
+          return (
+            <div
+              key={slide.id || index}
+              className={`slide content-fill slider-slide-layer ${isActive ? 'active' : ''}`}
+              data-type="image"
+              style={{
+                opacity: isActive ? 1 : 0,
+                pointerEvents: isActive ? 'auto' : 'none'
+              }}
             >
-              &#10229;
-            </button>
-            <button
-              className="slider-arrow slider-arrow-right"
-              onClick={nextSlide}
-              aria-label="Next slide"
-            >
-              &#10230;
-            </button>
-          </>
-        )}
-
-        {/* Crossfade Slides */}
-        <div className="slider-slides-track">
-          {normalizedSlides.map((slide, index) => {
-            const isActive = index === currentIndex;
-            const optimizedUrl = getOptimizedImageUrl(slide.url, {
-              width: 1600,
-              quality: 'auto:best',
-              format: 'auto'
-            });
-
-            return (
-              <div
-                key={slide.id || index}
-                className={`slider-slide-layer ${isActive ? 'active' : ''}`}
-                style={{
-                  opacity: isActive ? 1 : 0,
-                  pointerEvents: isActive ? 'auto' : 'none'
-                }}
-              >
-                <img
-                  src={optimizedUrl}
-                  alt={slide.title || 'Slide'}
-                  className="slider-slide-img"
-                  loading={index === 0 ? 'eager' : 'lazy'}
-                  decoding="async"
-                />
-                {(slide.title || slide.subtitle) && (
-                  <div className="slider-caption-overlay">
-                    {slide.subtitle && <span className="slider-subtitle">{slide.subtitle}</span>}
-                    {slide.title && <h3 className="slider-title">{slide.title}</h3>}
-                  </div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        {/* Dots Pagination */}
-        {total > 1 && (
-          <div className="slider-dots-wrapper">
-            {normalizedSlides.map((_, index) => (
-              <button
-                key={index}
-                className={`slider-dot-btn ${index === currentIndex ? 'active' : ''}`}
-                onClick={() => goToSlide(index)}
-                aria-label={`Go to slide ${index + 1}`}
-                aria-current={index === currentIndex ? 'true' : 'false'}
+              <img
+                src={optimizedUrl}
+                alt={slide.title || 'Wedding Photograph'}
+                className="thumb-image slider-slide-img"
+                loading={index === 0 ? 'eager' : 'lazy'}
+                decoding="async"
               />
-            ))}
-          </div>
-        )}
+              <div className="color-overlay"></div>
+              {(slide.title || slide.subtitle) && (
+                <div className="sqs-gallery-meta slider-caption-overlay">
+                  {slide.subtitle && <span className="slider-subtitle">{slide.subtitle}</span>}
+                  {slide.title && <h3 className="slider-title">{slide.title}</h3>}
+                </div>
+              )}
+            </div>
+          );
+        })}
       </div>
+
+      {/* Squarespace Style Navigation Arrows */}
+      {total > 1 && (
+        <div className="sqs-gallery-meta-container">
+          <div className="sqs-gallery-controls">
+            <button
+              type="button"
+              className="previous"
+              onClick={prevSlide}
+              aria-label="Previous Slide"
+            >
+              <svg viewBox="0 0 100 100" className="control-arrow prev-arrow" aria-hidden="true">
+                <polyline points="65 20, 35 50, 65 80" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+            <button
+              type="button"
+              className="next"
+              onClick={nextSlide}
+              aria-label="Next Slide"
+            >
+              <svg viewBox="0 0 100 100" className="control-arrow next-arrow" aria-hidden="true">
+                <polyline points="35 20, 65 50, 35 80" fill="none" stroke="currentColor" strokeWidth="6" strokeLinecap="round" strokeLinejoin="round" />
+              </svg>
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Dots Pagination */}
+      {total > 1 && (
+        <div className="sqs-gallery-dots slider-dots-wrapper">
+          {normalizedSlides.map((_, index) => (
+            <button
+              key={index}
+              className={`slider-dot-btn ${index === currentIndex ? 'active' : ''}`}
+              onClick={() => goToSlide(index)}
+              aria-label={`Go to slide ${index + 1}`}
+              aria-current={index === currentIndex ? 'true' : 'false'}
+            />
+          ))}
+        </div>
+      )}
     </div>
   );
 };

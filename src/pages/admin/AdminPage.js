@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Link } from 'react-router-dom';
 import { useContent } from '../../context/ContentContext';
 import { useAuth } from '../../context/AuthContext';
+import { compressImageFile } from '../../utils/imageCompressor';
 
 function AdminPage() {
   const {
@@ -32,7 +33,15 @@ function AdminPage() {
     setHeaderSettings,
     footerSettings,
     setFooterSettings,
-    resetToInitialData
+    collageSlides,
+    addCollageSlide,
+    deleteCollageSlide,
+    resetToInitialData,
+    saveSettingsToServer,
+    exportSettingsJSON,
+    importSettingsJSON,
+    reloadSettingsFromServer,
+    getAllSettings
   } = useContent();
 
   const { isAuthenticated, login, logout, defaultPasscode } = useAuth();
@@ -101,6 +110,9 @@ function AdminPage() {
     title: '',
     subtitle: ''
   });
+
+  // 3x3 Grid Slides form state
+  const [gridSlideUrlInput, setGridSlideUrlInput] = useState('');
 
   // About form state
   const [aboutForm, setAboutForm] = useState({ ...aboutData });
@@ -181,11 +193,78 @@ function AdminPage() {
   const [bulkUrls, setBulkUrls] = useState('');
   const [bulkCategory, setBulkCategory] = useState('ceremony');
 
-  // Notification message
   const [toast, setToast] = useState('');
   const showToast = (msg) => {
     setToast(msg);
     setTimeout(() => setToast(''), 3000);
+  };
+
+  // Config management handlers
+  const [isSavingConfig, setIsSavingConfig] = useState(false);
+  const [jsonCopySuccess, setJsonCopySuccess] = useState(false);
+
+  const handleSaveAllToSettingsFile = async () => {
+    setIsSavingConfig(true);
+    try {
+      const res = await saveSettingsToServer(null, true);
+      if (res && res.mode === 'server') {
+        showToast('Saved directly to public/site_settings.json on disk!');
+      } else if (res && res.mode === 'download') {
+        showToast('Downloaded site_settings.json! Put in public/ folder to deploy.');
+      } else if (res && res.success) {
+        showToast('Site settings updated successfully!');
+      } else {
+        showToast('Error saving: ' + (res?.error || 'Unknown issue'));
+      }
+    } catch (e) {
+      showToast('Error saving settings: ' + e.message);
+    } finally {
+      setIsSavingConfig(false);
+    }
+  };
+
+  const handleDownloadSettingsJSON = () => {
+    exportSettingsJSON();
+    showToast('Downloaded site_settings.json successfully!');
+  };
+
+  const handleUploadSettingsJSON = (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const parsed = JSON.parse(event.target.result);
+        const res = importSettingsJSON(parsed);
+        if (res.success) {
+          showToast('Imported site_settings.json successfully!');
+        } else {
+          showToast('Failed to import JSON: ' + res.error);
+        }
+      } catch (err) {
+        showToast('Invalid JSON file format');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const handleReloadSettings = async () => {
+    const res = await reloadSettingsFromServer();
+    if (res.success) {
+      showToast('Reloaded settings from public/site_settings.json!');
+    } else {
+      showToast('Failed to reload: ' + res.error);
+    }
+  };
+
+  const handleCopyJSON = () => {
+    const all = getAllSettings();
+    navigator.clipboard.writeText(JSON.stringify(all, null, 2)).then(() => {
+      setJsonCopySuccess(true);
+      showToast('Full JSON configuration copied to clipboard!');
+      setTimeout(() => setJsonCopySuccess(false), 2000);
+    });
   };
 
   const handleLogin = (e) => {
@@ -234,6 +313,41 @@ function AdminPage() {
     addHeroSlide(slideForm);
     setSlideForm({ url: '', title: '', subtitle: '' });
     showToast('New slide added to Home slideshow!');
+  };
+
+  // ---------------- 3x3 Grid Slides Actions ----------------
+  const handleGridFileUpload = async (e) => {
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0) return;
+
+    for (const file of files) {
+      try {
+        const compressedDataUrl = await compressImageFile(file, 1080, 1920, 0.88);
+        if (compressedDataUrl) {
+          addCollageSlide({ image: compressedDataUrl });
+        }
+      } catch (err) {
+        console.error('Error compressing uploaded slide:', err);
+      }
+    }
+    showToast(`Uploaded ${files.length} new 3x3 grid slide(s)!`);
+    e.target.value = '';
+  };
+
+  const handleGridAddUrl = (e) => {
+    e.preventDefault();
+    if (!gridSlideUrlInput.trim()) return;
+    const urls = gridSlideUrlInput.split(/[\n,]+/).map(u => u.trim()).filter(Boolean);
+    urls.forEach(u => {
+      addCollageSlide({ image: u });
+    });
+    setGridSlideUrlInput('');
+    showToast(`Added ${urls.length} 3x3 slide(s)!`);
+  };
+
+  const handleAddDefaultSampleSlide = () => {
+    addCollageSlide({ image: '/grid_slides/grid_slide_default.jpg' });
+    showToast('Added copy of default 3x3 grid slide!');
   };
 
   // ---------------- 3. Stories Page Actions ----------------
@@ -342,9 +456,9 @@ function AdminPage() {
     showToast(`Added ${urls.length} images to "${currentStory.couple}"!`);
   };
 
-  const handleDeleteImage = (imageId) => {
+  const handleDeleteImage = (imageId, imageIndex = null) => {
     if (currentStory && window.confirm('Remove this photo from the gallery?')) {
-      deleteImageFromStory(currentStory.id, imageId);
+      deleteImageFromStory(currentStory.id, imageId, imageIndex);
       showToast('Photo removed from gallery.');
     }
   };
@@ -420,6 +534,28 @@ function AdminPage() {
           <h1 className="admin-portal-title">Content &amp; Image Management</h1>
         </div>
         <div className="admin-top-actions">
+          <button
+            className="admin-save-config-btn"
+            onClick={handleSaveAllToSettingsFile}
+            disabled={isSavingConfig}
+            title="Save all configuration directly to site_settings.json"
+            style={{
+              background: '#1b5e20',
+              color: '#ffffff',
+              border: 'none',
+              padding: '0.55rem 1rem',
+              borderRadius: '4px',
+              fontWeight: '600',
+              fontSize: '0.88rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+            }}
+          >
+            {isSavingConfig ? 'Saving...' : '💾 Save site_settings.json'}
+          </button>
           <Link to="/home" className="admin-preview-btn">
             &larr; View Live Website
           </Link>
@@ -449,6 +585,14 @@ function AdminPage() {
         >
           <span className="metric-num">{heroSlides.length}</span>
           <span className="metric-lbl">Home Slides</span>
+        </div>
+        <div
+          className={`metric-box ${activeTab === 'home' ? 'active' : ''}`}
+          onClick={() => setActiveTab('home')}
+          style={{ cursor: 'pointer' }}
+        >
+          <span className="metric-num">{collageSlides ? collageSlides.length : 0}</span>
+          <span className="metric-lbl">3x3 Slides</span>
         </div>
         <div
           className={`metric-box ${activeTab === 'stories' ? 'active' : ''}`}
@@ -481,6 +625,14 @@ function AdminPage() {
         >
           <span className="metric-num">{inquiries.length}</span>
           <span className="metric-lbl">Inquiries ({unreadInquiries} New)</span>
+        </div>
+        <div
+          className={`metric-box ${activeTab === 'config' ? 'active' : ''}`}
+          onClick={() => setActiveTab('config')}
+          style={{ cursor: 'pointer', borderColor: '#2e7d32' }}
+        >
+          <span className="metric-num" style={{ color: '#2e7d32' }}>JSON</span>
+          <span className="metric-lbl">Config File</span>
         </div>
       </div>
 
@@ -522,6 +674,13 @@ function AdminPage() {
         >
           Contact Page &amp; Inquiries
           {unreadInquiries > 0 && <span className="tab-pill">{unreadInquiries} New</span>}
+        </button>
+        <button
+          className={`admin-tab-btn ${activeTab === 'config' ? 'active' : ''}`}
+          onClick={() => setActiveTab('config')}
+          style={{ fontWeight: '600', color: activeTab === 'config' ? 'var(--color-accent)' : '#2e7d32' }}
+        >
+          ⚙️ site_settings.json
         </button>
       </nav>
 
@@ -713,12 +872,37 @@ function AdminPage() {
 
               <div className="uploader-card" style={{ maxWidth: '650px', marginBottom: '2rem' }}>
                 <h4>+ Add New Homepage Slide</h4>
-                <form onSubmit={handleAddSlide} className="admin-form" style={{ marginTop: '1rem' }}>
+                <div className="form-group" style={{ background: '#191919', padding: '1rem', borderRadius: '4px', border: '1px dashed #3a3a3a', marginTop: '1rem', marginBottom: '1rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--color-accent)', fontWeight: 500, fontSize: '0.85rem' }}>
+                    Upload Photo from Device
+                  </label>
+                  <input
+                    type="file"
+                    accept="image/*"
+                    onChange={async (e) => {
+                      const file = e.target.files && e.target.files[0];
+                      if (file) {
+                        try {
+                          const compressed = await compressImageFile(file, 1600, 1200, 0.88);
+                          if (compressed) {
+                            setSlideForm(prev => ({ ...prev, url: compressed }));
+                            showToast('Photo uploaded and optimized!');
+                          }
+                        } catch (err) {
+                          console.error('Error compressing hero slide image:', err);
+                        }
+                      }
+                    }}
+                    style={{ color: '#ccc', fontSize: '0.85rem' }}
+                  />
+                </div>
+
+                <form onSubmit={handleAddSlide} className="admin-form">
                   <div className="form-group">
-                    <label>Cloudinary Image URL *</label>
+                    <label>Or Image URL *</label>
                     <input
                       type="url"
-                      placeholder="https://res.cloudinary.com/..."
+                      placeholder="https://..."
                       value={slideForm.url}
                       onChange={(e) => setSlideForm({ ...slideForm, url: e.target.value })}
                       required
@@ -762,7 +946,10 @@ function AdminPage() {
                     <button
                       className="btn-action delete"
                       onClick={() => {
-                        if (window.confirm('Delete this slide?')) deleteHeroSlide(slide.id);
+                        if (window.confirm('Delete this slide?')) {
+                          deleteHeroSlide(slide.id, idx);
+                          showToast('Slide deleted.');
+                        }
                       }}
                     >
                       Delete Slide
@@ -834,6 +1021,121 @@ function AdminPage() {
                     </div>
                   ))}
                 </div>
+              </div>
+            </div>
+
+            {/* Sub-Section C: 3x3 Grid Slideshow (Above Footer) */}
+            <div style={{ borderTop: '1px solid #262626', paddingTop: '2.5rem', marginTop: '3rem' }}>
+              <div style={{ marginBottom: '1.5rem' }}>
+                <h3 style={{ color: 'var(--color-accent)', marginBottom: '0.4rem', fontFamily: 'var(--font-serif)', fontSize: '1.4rem' }}>
+                  3. 3x3 Grid Slideshow ({collageSlides ? collageSlides.length : 0} Slides)
+                </h3>
+                <p style={{ color: '#888', fontSize: '0.85rem' }}>
+                  Manage the 3x3 multi-image composite photo slider displayed above the footer. Slides auto-slide smoothly every 3 to 4 seconds with no captions.
+                </p>
+              </div>
+
+              {/* Add New Slide Card */}
+              <div className="uploader-card" style={{ maxWidth: '850px', marginBottom: '2.5rem' }}>
+                <h4 style={{ color: '#f5deb3', marginBottom: '0.5rem' }}>+ Add New 3x3 Grid Slide</h4>
+                <p style={{ color: '#888', fontSize: '0.82rem', marginBottom: '1.5rem' }}>
+                  Upload a 3x3 composite image file from your device or paste an image URL.
+                </p>
+
+                {/* Upload from Device */}
+                <div className="form-group" style={{ background: '#191919', padding: '1.25rem', borderRadius: '4px', border: '1px dashed #3a3a3a', marginBottom: '1.25rem' }}>
+                  <label style={{ display: 'block', marginBottom: '0.5rem', color: 'var(--color-accent)', fontWeight: 500 }}>
+                    Upload 3x3 Grid Photo from Device
+                  </label>
+                  <input
+                    type="file"
+                    multiple
+                    accept="image/*"
+                    onChange={handleGridFileUpload}
+                    style={{ color: '#ccc', fontSize: '0.85rem' }}
+                  />
+                  <span style={{ fontSize: '0.75rem', color: '#777', display: 'block', marginTop: '0.4rem' }}>
+                    Tip: You can select one or multiple 3x3 composite photo files at once.
+                  </span>
+                </div>
+
+                {/* Or Paste URL */}
+                <form onSubmit={handleGridAddUrl} className="admin-form" style={{ marginBottom: '1.25rem' }}>
+                  <div className="form-group">
+                    <label>Or Paste Image URL(s) (comma or newline separated)</label>
+                    <div style={{ display: 'flex', gap: '0.5rem' }}>
+                      <input
+                        type="url"
+                        placeholder="https://..."
+                        value={gridSlideUrlInput}
+                        onChange={(e) => setGridSlideUrlInput(e.target.value)}
+                        style={{ flex: 1 }}
+                      />
+                      <button type="submit" className="btn-primary" style={{ whiteSpace: 'nowrap' }}>
+                        Add Slide URL
+                      </button>
+                    </div>
+                  </div>
+                </form>
+
+                {/* Quick Add Default Image */}
+                <div style={{ display: 'flex', justifyContent: 'flex-start' }}>
+                  <button
+                    type="button"
+                    className="btn-link"
+                    onClick={handleAddDefaultSampleSlide}
+                    style={{ fontSize: '0.85rem' }}
+                  >
+                    + Add Copy of Default 3x3 Grid Photo
+                  </button>
+                </div>
+              </div>
+
+              {/* Current Slides Gallery */}
+              <h4 style={{ color: '#f5deb3', marginBottom: '1rem' }}>
+                Current 3x3 Grid Slides ({collageSlides ? collageSlides.length : 0})
+              </h4>
+
+              <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))', gap: '1.25rem' }}>
+                {(collageSlides || []).map((slide, sIdx) => {
+                  const imgSrc = slide.image || slide.url || '/grid_slides/grid_slide_default.jpg';
+                  return (
+                    <div
+                      key={slide.id || sIdx}
+                      style={{
+                        background: '#171717',
+                        border: '1px solid #282828',
+                        borderRadius: '6px',
+                        overflow: 'hidden',
+                        display: 'flex',
+                        flexDirection: 'column'
+                      }}
+                    >
+                      <div style={{ width: '100%', height: '320px', background: '#000', overflow: 'hidden' }}>
+                        <img
+                          src={imgSrc}
+                          alt={`Slide ${sIdx + 1}`}
+                          style={{ width: '100%', height: '100%', objectFit: 'cover', display: 'block' }}
+                        />
+                      </div>
+                      <div style={{ padding: '0.75rem', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '0.8rem', color: '#888' }}>Slide #{sIdx + 1}</span>
+                        <button
+                          type="button"
+                          className="btn-action delete"
+                          onClick={() => {
+                            if (window.confirm(`Delete Slide #${sIdx + 1}?`)) {
+                              deleteCollageSlide(slide.id, sIdx);
+                              showToast(`Slide #${sIdx + 1} deleted.`);
+                            }
+                          }}
+                        >
+                          Delete
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
               </div>
             </div>
           </div>
@@ -960,12 +1262,37 @@ function AdminPage() {
                     {/* Add Single Image Form */}
                     <div className="uploader-card">
                       <h3>+ Add Single Photo to &ldquo;{currentStory.couple}&rdquo;</h3>
+                      <div className="form-group" style={{ background: '#191919', padding: '1rem', borderRadius: '4px', border: '1px dashed #3a3a3a', marginTop: '1rem', marginBottom: '1rem' }}>
+                        <label style={{ display: 'block', marginBottom: '0.4rem', color: 'var(--color-accent)', fontWeight: 500, fontSize: '0.85rem' }}>
+                          Upload Photo from Device
+                        </label>
+                        <input
+                          type="file"
+                          accept="image/*"
+                          onChange={async (e) => {
+                            const file = e.target.files && e.target.files[0];
+                            if (file) {
+                              try {
+                                const compressed = await compressImageFile(file, 1600, 1200, 0.88);
+                                if (compressed) {
+                                  setSingleImageForm(prev => ({ ...prev, url: compressed }));
+                                  showToast('Photo uploaded and optimized!');
+                                }
+                              } catch (err) {
+                                console.error('Error compressing story photo:', err);
+                              }
+                            }
+                          }}
+                          style={{ color: '#ccc', fontSize: '0.85rem' }}
+                        />
+                      </div>
+
                       <form onSubmit={handleAddSingleImage} className="admin-form">
                         <div className="form-group">
-                          <label>Cloudinary Photo URL *</label>
+                          <label>Or Photo URL *</label>
                           <input
                             type="url"
-                            placeholder="https://res.cloudinary.com/..."
+                            placeholder="https://..."
                             value={singleImageForm.url}
                             onChange={(e) => setSingleImageForm({ ...singleImageForm, url: e.target.value })}
                             required
@@ -1059,8 +1386,8 @@ function AdminPage() {
                     </div>
                   ) : (
                     <div className="admin-gallery-grid">
-                      {currentStory.images.map((img) => (
-                        <div key={img.id} className="admin-photo-card">
+                      {currentStory.images.map((img, imgIdx) => (
+                        <div key={img.id || imgIdx} className="admin-photo-card">
                           <div
                             className="admin-photo-thumb"
                             style={{ backgroundImage: `url(${img.url || img.src})` }}
@@ -1071,7 +1398,7 @@ function AdminPage() {
                             <p className="photo-title">{img.title || 'Wedding Photo'}</p>
                             <button
                               className="btn-photo-delete"
-                              onClick={() => handleDeleteImage(img.id)}
+                              onClick={() => handleDeleteImage(img.id, imgIdx)}
                             >
                               &times; Remove
                             </button>
@@ -1807,6 +2134,168 @@ function AdminPage() {
                   ))}
                 </div>
               )}
+            </div>
+          </div>
+        )}
+
+        {/* ================= TAB 7: CONFIG (site_settings.json) ================= */}
+        {activeTab === 'config' && (
+          <div className="admin-section">
+            <div className="section-head-bar">
+              <div>
+                <h2>Global Site Configuration (site_settings.json)</h2>
+                <p>Manage, save, download, and synchronize the central configuration JSON file that all visitors and customers load.</p>
+              </div>
+            </div>
+
+            <div style={{
+              background: '#161616',
+              border: '1px solid #2e7d32',
+              borderRadius: '8px',
+              padding: '1.8rem',
+              marginBottom: '2rem'
+            }}>
+              <h3 style={{ marginTop: 0, color: '#4caf50', display: 'flex', alignItems: 'center', gap: '0.6rem', fontSize: '1.25rem' }}>
+                <span>📁</span> Why <code>site_settings.json</code> is the Single Source of Truth
+              </h3>
+              <p style={{ lineHeight: '1.6', color: '#ccc', margin: '0.5rem 0 1.2rem' }}>
+                Browser <code>localStorage</code> is private to only one browser on one computer—customers visiting your live website cannot see changes stored in your local browser.
+                Instead, our website loads all stories, hero slides, 3x3 collage slides, bio, and contact settings directly from <strong><code>public/site_settings.json</code></strong>.
+                When any client or customer accesses the site on their phone or computer, their browser fetches this JSON file in real time—<strong>zero database required!</strong>
+              </p>
+
+              <div style={{ display: 'flex', flexWrap: 'wrap', gap: '1rem', marginTop: '1.2rem' }}>
+                <button
+                  type="button"
+                  onClick={handleSaveAllToSettingsFile}
+                  disabled={isSavingConfig}
+                  style={{
+                    background: '#2e7d32',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '4px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  {isSavingConfig ? 'Saving...' : '💾 Save Directly to Disk / Server'}
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleDownloadSettingsJSON}
+                  style={{
+                    background: '#1976d2',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '4px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  📥 Download site_settings.json
+                </button>
+
+                <label
+                  style={{
+                    background: '#424242',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '4px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  📤 Upload / Import site_settings.json
+                  <input
+                    type="file"
+                    accept=".json"
+                    onChange={handleUploadSettingsJSON}
+                    style={{ display: 'none' }}
+                  />
+                </label>
+
+                <button
+                  type="button"
+                  onClick={handleReloadSettings}
+                  style={{
+                    background: '#616161',
+                    color: '#fff',
+                    border: 'none',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '4px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  🔄 Reload from Server
+                </button>
+
+                <button
+                  type="button"
+                  onClick={handleCopyJSON}
+                  style={{
+                    background: jsonCopySuccess ? '#2e7d32' : '#222',
+                    color: '#fff',
+                    border: '1px solid #444',
+                    padding: '0.75rem 1.4rem',
+                    borderRadius: '4px',
+                    fontWeight: '600',
+                    cursor: 'pointer',
+                    fontSize: '0.92rem',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: '0.4rem'
+                  }}
+                >
+                  {jsonCopySuccess ? '✓ Copied to Clipboard!' : '📋 Copy Full JSON'}
+                </button>
+              </div>
+            </div>
+
+            <div className="admin-card" style={{ marginTop: '1.5rem', background: '#111', border: '1px solid #262626' }}>
+              <div className="admin-card-header" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem' }}>
+                <h3 style={{ margin: 0, color: '#fff', fontSize: '1.1rem' }}>Live Configuration Inspector</h3>
+                <span style={{ fontSize: '0.8rem', color: '#888' }}>Real-time reflection of current content state</span>
+              </div>
+              <div className="admin-card-body" style={{ padding: '0 1.25rem 1.25rem' }}>
+                <textarea
+                  readOnly
+                  value={JSON.stringify(getAllSettings(), null, 2)}
+                  style={{
+                    width: '100%',
+                    height: '420px',
+                    fontFamily: 'monospace',
+                    fontSize: '0.85rem',
+                    lineHeight: '1.5',
+                    padding: '1rem',
+                    background: '#0a0a0a',
+                    color: '#a9ffb0',
+                    border: '1px solid #262626',
+                    borderRadius: '4px',
+                    boxSizing: 'border-box'
+                  }}
+                />
+              </div>
             </div>
           </div>
         )}

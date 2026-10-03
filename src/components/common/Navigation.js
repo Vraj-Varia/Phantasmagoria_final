@@ -30,7 +30,7 @@ function Navigation() {
   ];
 
   const isActive = (path) => {
-    if (path === '/home' && (location.pathname === '/home' || location.pathname === '/portfolio')) return true;
+    if (path === '/home' && (location.pathname === '/home' || location.pathname === '/portfolio' || location.pathname === '/weddings')) return true;
     return location.pathname === path;
   };
 

@@ -1,11 +1,12 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { Link, useLocation } from 'react-router-dom';
 import ImageSlider from '../components/ui/ImageSlider';
+import CollageGridSlider from '../components/ui/CollageGridSlider';
 import { useContent } from '../context/ContentContext';
 import { INITIAL_HERO_SLIDES } from '../data/initialData';
 
 function HomePage() {
-  const { heroSlides, stories, homePageData } = useContent();
+  const { heroSlides, stories, homePageData, collageSlides } = useContent();
   const sectionRef = useRef(null);
   const [isVisible, setIsVisible] = useState(false);
   const location = useLocation();
@@ -137,6 +138,9 @@ function HomePage() {
           })}
         </div>
       </section>
+
+      {/* Editorial 3x3 Multi-Image Grid Carousel (Above Footer) */}
+      <CollageGridSlider slides={collageSlides} />
     </div>
   );
 }

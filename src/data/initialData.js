@@ -4,30 +4,42 @@
  * All data is dynamically managed via ContentContext and can be edited in the Admin dashboard.
  */
 
+import slide1 from '../assets/slider/slide_1.jpg';
+import slide2 from '../assets/slider/slide_2.jpg';
+import slide3 from '../assets/slider/slide_3.jpg';
+import slide4 from '../assets/slider/slide_4.jpg';
+import slide5 from '../assets/slider/slide_5.jpg';
+
 export const INITIAL_HERO_SLIDES = [
   {
     id: 'slide-1',
-    url: 'https://images.unsplash.com/photo-1519741497674-611481863552?auto=format&fit=crop&w=1920&q=80',
-    title: 'The Royal Union',
-    subtitle: 'Jaipur, India'
+    url: slide1,
+    title: 'Motion in Grace',
+    subtitle: 'Udaipur // India'
   },
   {
     id: 'slide-2',
-    url: 'https://images.unsplash.com/photo-1511285560929-80b456fea0bc?auto=format&fit=crop&w=1920&q=80',
-    title: 'Whispers in Tuscany',
-    subtitle: 'Castello di Vicarello'
+    url: slide2,
+    title: 'Timeless Monochrome',
+    subtitle: 'Jaipur // India'
   },
   {
     id: 'slide-3',
-    url: 'https://images.unsplash.com/photo-1583939003579-730e3918a45a?auto=format&fit=crop&w=1920&q=80',
-    title: 'Sunset in Santorini',
-    subtitle: 'Canaves Oia'
+    url: slide3,
+    title: 'The Royal Courtyard',
+    subtitle: 'Rambagh Palace'
   },
   {
     id: 'slide-4',
-    url: 'https://images.unsplash.com/photo-1532712938310-34cb3982ef74?auto=format&fit=crop&w=1920&q=80',
-    title: 'Eternal Elegance',
-    subtitle: 'Lake Como, Italy'
+    url: slide4,
+    title: 'Golden Twilight Glow',
+    subtitle: 'Jodhpur // India'
+  },
+  {
+    id: 'slide-5',
+    url: slide5,
+    title: 'The Regal Twirl',
+    subtitle: 'City Palace'
   }
 ];
 
@@ -310,7 +322,9 @@ export const INITIAL_HERO_PAGE = {
 
 export const INITIAL_HOME_PAGE = {
   storiesLabel: 'Love Stories',
-  storiesTitle: 'Real Stories'
+  storiesTitle: 'Real Stories',
+  gridSliderSubtitle: '',
+  gridSliderTitle: ''
 };
 
 export const INITIAL_STORIES_PAGE = {
@@ -343,5 +357,28 @@ export const INITIAL_FOOTER_SETTINGS = {
   facebook: 'https://facebook.com',
   pinterest: 'https://pinterest.com'
 };
+
+export const INITIAL_COLLAGE_SLIDES = [
+  {
+    id: 'grid-slide-1',
+    image: '/grid_slides/grid_slide_default.jpg'
+  },
+  {
+    id: 'grid-slide-2',
+    image: '/grid_slides/grid_slide_default.jpg'
+  },
+  {
+    id: 'grid-slide-3',
+    image: '/grid_slides/grid_slide_default.jpg'
+  },
+  {
+    id: 'grid-slide-4',
+    image: '/grid_slides/grid_slide_default.jpg'
+  },
+  {
+    id: 'grid-slide-5',
+    image: '/grid_slides/grid_slide_default.jpg'
+  }
+];
 
 
