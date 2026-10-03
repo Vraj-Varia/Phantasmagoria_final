@@ -556,6 +556,27 @@ function AdminPage() {
           >
             {isSavingConfig ? 'Saving...' : '💾 Save site_settings.json'}
           </button>
+          <button
+            className="admin-download-btn"
+            onClick={handleDownloadSettingsJSON}
+            title="Download updated site_settings.json to commit & push to Git for Vercel"
+            style={{
+              background: '#0d47a1',
+              color: '#ffffff',
+              border: 'none',
+              padding: '0.55rem 1rem',
+              borderRadius: '4px',
+              fontWeight: '600',
+              fontSize: '0.88rem',
+              cursor: 'pointer',
+              display: 'inline-flex',
+              alignItems: 'center',
+              gap: '0.4rem',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.15)'
+            }}
+          >
+            📥 Download JSON for Vercel
+          </button>
           <Link to="/home" className="admin-preview-btn">
             &larr; View Live Website
           </Link>
@@ -2269,6 +2290,33 @@ function AdminPage() {
                 >
                   {jsonCopySuccess ? '✓ Copied to Clipboard!' : '📋 Copy Full JSON'}
                 </button>
+              </div>
+
+              <div style={{
+                background: '#0d1b2a',
+                border: '1px solid #1e3a8a',
+                borderRadius: '6px',
+                padding: '1.25rem',
+                marginTop: '1.5rem',
+                fontSize: '0.88rem',
+                color: '#93c5fd'
+              }}>
+                <strong style={{ color: '#60a5fa', display: 'block', marginBottom: '0.6rem', fontSize: '1rem' }}>
+                  🚀 How to publish changes to Vercel so ALL customers & devices see them:
+                </strong>
+                <p style={{ margin: '0 0 0.8rem 0', color: '#cbd5e1', lineHeight: '1.5' }}>
+                  Because Vercel is a global CDN without a writable server database, all visitors load the live configuration from <code>public/site_settings.json</code> in your Git repository. Whenever you update photos in Admin, publish them in 3 simple steps:
+                </p>
+                <ol style={{ margin: '0 0 0 1.25rem', padding: 0, lineHeight: '1.8', color: '#f1f5f9' }}>
+                  <li>Click the blue <strong>📥 Download site_settings.json</strong> button above.</li>
+                  <li>Replace <code>public/site_settings.json</code> in your project with the downloaded file.</li>
+                  <li>In your project terminal, run:
+                    <div style={{ background: '#000', padding: '0.5rem 0.8rem', borderRadius: '4px', margin: '0.4rem 0', fontFamily: 'monospace', color: '#4ade80', fontSize: '0.85rem' }}>
+                      git add public/site_settings.json && git commit -m "Update site photos" && git push
+                    </div>
+                  </li>
+                  <li>Vercel automatically rebuilds and deploys in ~30 seconds, and <strong>all devices and customers worldwide see the updated images immediately!</strong></li>
+                </ol>
               </div>
             </div>
 
